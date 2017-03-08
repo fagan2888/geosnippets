@@ -21,7 +21,11 @@ class Point(object):
         self.x = kwds['x']
         self.y = kwds['y']
         self.type = kwds['type']
+        if 'z' in kwds:
+            self.z = kwds['z']
         # self.z = z
+        if 'zone' in kwds:
+            self.zone = kwds['zone']
         if 'type' in kwds and kwds['type'] == 'utm' and not 'zone' in kwds:
             raise AttributeError("Please provide utm zone")
         # for the case that self.type == 'latlong': determine UTM zone:
@@ -85,8 +89,9 @@ class PointSet(object):
     def __repr__(self):
         """Print out information about point set"""
         str = "Point set with %d points" % len(self.points)
+        str += "; " + self.type
         if hasattr(self, 'ctr'):
-            str+="; Centroid: at (%.2f, %.2f, %.2f)" % (self.ctr[0], self.ctr[1], self.ctr[2])
+            str+="; Centroid: at (%.2f, %.2f, %.2f)" % (self.ctr.x, self.ctr.y, self.ctr.z)
         return str
 
     def add_point(self, point):
@@ -98,6 +103,9 @@ class PointSet(object):
             for point in self.points:
                 point.latlong_to_utm()
             self.type = 'utm'
+        # convert plane centroid, if already calculated:
+        if hasattr(self, 'ctr'):
+            self.ctr.latlong_to_utm()
 
     def utm_to_latlong(self):
         """Convert all points from utm to lat long"""
@@ -105,6 +113,9 @@ class PointSet(object):
             for point in self.points:
                 point.utm_to_latlong()
             self.type = 'latlong'
+        # convert plane centroid, if already calculated:
+        if hasattr(self, 'ctr'):
+            self.ctr.utm_to_latlong()
 
     def get_z_values_from_geotiff(self, filename):
         """Open GeoTiff file and get z-value for all points in set"""
@@ -147,7 +158,7 @@ class PointSet(object):
         x = points - ctr[:, np.newaxis]
         M = np.dot(x, x.T)  # Could also use np.cov(x) here.
 
-        self.ctr = Point(x=ctr[0], y=ctr[1], type='utm')
+        self.ctr = Point(x=ctr[0], y=ctr[1], z=ctr[2], type='utm', zone=self.points[0].zone)
         self.normal = svd(M)[0][:, -1]
         # return ctr, svd(M)[0][:, -1]
         if self.normal[2] < 0:
